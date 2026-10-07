@@ -1,0 +1,22 @@
+{
+  "displayBrand": "LG",
+  "displaySeries": "OLED C3",
+  "displayExampleSku": "OLED55C3PUA",
+  "displaySkuNote": "US 55-inch C3 example from LG.com; other sizes share the C3 webOS platform.",
+  "avrBrand": "Denon",
+  "avrModel": "AVR-X3800H",
+  "avrSupportedByHa": true,
+  "avrFactoryInputForHdmi2": "Media Player",
+  "avrFactoryInputNote": "AVR-X3800H Input Assign defaults: CBL/SAT=HDMI1, Media Player=HDMI2, Blu-ray=HDMI3, Game=HDMI4, AUX1=HDMI5, AUX2=HDMI6. Source Rename / HDMI device-name detection can change the string exposed as media_player.source — copy the live attribute into contracts source_contains.",
+  "tvHdmiFromAvrExample": "HDMI 2",
+  "tvHdmiNote": "webOS source strings come from the TV source_list (often 'HDMI 2'). Renamed inputs can break select_source; prefer the label shown in Developer Tools → States.",
+  "denonNetworkPorts": "HA denonavr needs TCP 23, 8080, and 60006 on the AVR when using VLANs.",
+  "references": [
+    "https://www.home-assistant.io/integrations/webostv/",
+    "https://www.home-assistant.io/integrations/denonavr/",
+    "https://www.home-assistant.io/integrations/apple_tv/",
+    "https://manuals.denon.com/AVRX3800H/na/en/GFNFSYicezyjvb.php",
+    "https://manuals.denon.com/avrx3800h/na/en/GFNFSYbmopaqff.php",
+    "https://www.lg.com/us/tvs/lg-oled55c3pua-oled-4k-tv"
+  ]
+}

@@ -1,0 +1,77 @@
+# Stub sequences for LG webOS + Denon AVR-X3800H + Apple TV.
+# Entity IDs and source strings are examples — replace from Developer Tools → States.
+# Prerequisites validated against HA docs:
+# - webostv: LG Connect Apps; webostv.turn_on automation (WoL/CEC) required for power-on
+# - denonavr: select_source uses the name in source_list (factory Media Player = HDMI 2)
+# - apple_tv: wakeup/suspend via remote; play/pause are separate commands (no play_pause)
+
+# --- Required once in HA (not a script) ---
+# automation:
+#   - alias: LG C3 Wake on LAN
+#     triggers:
+#       - trigger: webostv.turn_on
+#         entity_id: media_player.lg_oled_c3
+#     actions:
+#       - action: wake_on_lan.send_magic_packet
+#         data:
+#           mac: "AA:BB:CC:DD:EE:FF"
+
+script.watch_appletv:
+  alias: Watch Apple TV
+  mode: restart
+  sequence:
+    - action: input_text.set_value
+      target: { entity_id: input_text.theater_last_error }
+      data: { value: "" }
+    - action: input_select.select_option
+      target: { entity_id: input_select.theater_activity }
+      data: { option: "Apple TV" }
+    # Display — requests turn_on; WoL automation above performs the wake
+    - action: media_player.turn_on
+      target: { entity_id: media_player.lg_oled_c3 }
+    - delay: { seconds: 8 }
+    - action: media_player.select_source
+      target: { entity_id: media_player.lg_oled_c3 }
+      data: { source: "HDMI 2" }
+    # AVR — Denon factory input for HDMI 2
+    - action: media_player.turn_on
+      target: { entity_id: media_player.denon_avr_x3800h }
+    - action: media_player.select_source
+      target: { entity_id: media_player.denon_avr_x3800h }
+      data: { source: "Media Player" }
+    # Apple TV — wakeup is a documented remote command
+    - action: remote.send_command
+      target: { entity_id: remote.living_room_apple_tv }
+      data: { command: wakeup }
+
+script.theater_shutdown:
+  alias: Theater Shutdown
+  mode: restart
+  sequence:
+    - action: input_text.set_value
+      target: { entity_id: input_text.theater_last_error }
+      data: { value: "" }
+    - action: remote.send_command
+      target: { entity_id: remote.living_room_apple_tv }
+      data: { command: suspend }
+    - action: media_player.turn_off
+      target: { entity_id: media_player.denon_avr_x3800h }
+    - action: media_player.turn_off
+      target: { entity_id: media_player.lg_oled_c3 }
+    - action: input_select.select_option
+      target: { entity_id: input_select.theater_activity }
+      data: { option: Idle }
+
+script.theater_resync:
+  alias: Theater Resync
+  mode: restart
+  sequence:
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: input_select.theater_activity
+              state: "Apple TV"
+          sequence:
+            - action: script.turn_on
+              target: { entity_id: script.watch_appletv }
+      default: []

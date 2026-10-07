@@ -1,0 +1,38 @@
+{
+  "Apple TV": {
+    "required": [
+      {
+        "role": "display",
+        "state_in": ["on", "playing", "paused"]
+      },
+      {
+        "role": "avr",
+        "state_in": ["on", "playing", "paused", "idle"],
+        "source_contains": "Media Player"
+      },
+      {
+        "role": "appletv",
+        "state_in": ["on", "playing", "paused", "idle"]
+      }
+    ],
+    "warn": []
+  },
+  "Idle": {
+    "required": [
+      {
+        "role": "display",
+        "state_in": ["off", "standby", "unavailable"]
+      },
+      {
+        "role": "avr",
+        "not_state": ["on", "playing", "paused"]
+      }
+    ],
+    "warn": [
+      {
+        "role": "appletv",
+        "state_in": ["off", "standby", "unavailable", "unknown"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "home-theater-ip-control",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/pwa/test_controls.js tests/pwa/test_app_buttons.js tests/pwa/test_static.js tests/pwa/test_activities.js tests/pwa/test_xbox_apps.js tests/pwa/test_atv_apps.js",
+    "test:viewports": "node --test tests/pwa/test_pad_viewports.js",
+    "test:all": "npm test && npm run test:viewports"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "playwright": "^1.55.0"
+  }
+}

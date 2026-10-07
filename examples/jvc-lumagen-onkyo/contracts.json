@@ -1,0 +1,65 @@
+{
+  "Watch Blu-Ray": {
+    "required": [
+      { "role": "display", "state": "on" },
+      { "role": "processor", "state": "on" },
+      { "role": "processorInput", "state": "Blu-ray (3)" },
+      { "role": "processorMemory", "state": "MEMA" },
+      {
+        "role": "avr",
+        "state_in": ["on", "playing", "paused", "idle"],
+        "source_contains": "GAME"
+      },
+      { "role": "bluray", "not_state": ["off", "unavailable", "unknown"] }
+    ],
+    "warn": [
+      { "role": "xbox", "state_in": ["off", "unavailable", "standby"] }
+    ]
+  },
+  "Play Xbox": {
+    "required": [
+      { "role": "display", "state": "on" },
+      { "role": "processor", "state": "on" },
+      { "role": "processorInput", "state": "Xbox (2)" },
+      { "role": "processorMemory", "state": "MEMA" },
+      {
+        "role": "avr",
+        "state_in": ["on", "playing", "paused", "idle"],
+        "source_contains": "GAME"
+      },
+      { "role": "xbox", "state_in": ["on", "playing", "paused", "idle"] }
+    ],
+    "warn": [
+      { "role": "bluray", "state_in": ["off", "unavailable", "unknown", "standby"] }
+    ]
+  },
+  "Watch Streaming": {
+    "required": [
+      { "role": "display", "state": "on" },
+      { "role": "processor", "state": "on" },
+      { "role": "processorInput", "state": "Xbox (1)" },
+      { "role": "processorMemory", "state": "MEMA" },
+      {
+        "role": "avr",
+        "state_in": ["on", "playing", "paused", "idle"],
+        "source_contains": "GAME"
+      },
+      { "role": "appletv", "state_in": ["on", "playing", "paused", "idle"] }
+    ],
+    "warn": [
+      { "role": "bluray", "state_in": ["off", "unavailable", "unknown", "standby"] },
+      { "role": "xbox", "state_in": ["off", "unavailable", "standby", "unknown"] }
+    ]
+  },
+  "Idle": {
+    "required": [
+      { "role": "display", "state_in": ["off", "cooling", "standby"] },
+      { "role": "processor", "not_state": ["on"] },
+      { "role": "avr", "not_state": ["on"] }
+    ],
+    "warn": [
+      { "role": "bluray", "state_in": ["off", "unavailable", "unknown", "standby"] },
+      { "role": "xbox", "state_in": ["off", "unavailable", "standby", "unknown"] }
+    ]
+  }
+}

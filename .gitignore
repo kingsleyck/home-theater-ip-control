@@ -1,0 +1,10 @@
+local.json
+*.token
+.env
+.env.*
+node_modules/
+.cursor/
+__pycache__/
+*.pyc
+app-icon-cache/
+_script_*.json

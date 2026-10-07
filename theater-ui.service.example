@@ -1,0 +1,15 @@
+[Unit]
+Description=Home Theater IP Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/home-theater-ip-control/pwa
+ExecStart=/usr/bin/python3 /path/to/home-theater-ip-control/pwa/serve.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Home Theater IP Control" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <title>Home Theater IP Control</title>
+    <script>
+      (function () {
+        var allowed = { ember: 1, void: 1, phosphor: 1, abyss: 1 };
+        var q = "";
+        try { q = new URLSearchParams(location.search).get("theme") || ""; } catch (_) {}
+        var stored = "";
+        try { stored = localStorage.getItem("theater.theme") || ""; } catch (_) {}
+        var theme = allowed[q] ? q : (allowed[stored] ? stored : "ember");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <script>
+      (function () {
+        var standalone = window.navigator.standalone === true
+          || (window.matchMedia && (
+            window.matchMedia("(display-mode: standalone)").matches
+            || window.matchMedia("(display-mode: fullscreen)").matches
+            || window.matchMedia("(display-mode: minimal-ui)").matches
+          ));
+        if (!standalone) return;
+        document.documentElement.classList.add("standalone");
+        document.documentElement.style.setProperty("--app-height", "100vh");
+      })();
+    </script>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" href="icon-192.png" />
+    <link rel="stylesheet" href="styles.css?v=114" />
+  </head>
+  <body>
+    <div id="app">
+      <section id="boot" class="panel">
+        <h1 data-room-name>Theater</h1>
+        <p class="lede">Connecting…</p>
+      </section>
+      <section id="setup" class="panel hidden">
+        <h1 data-room-name>Theater</h1>
+        <p class="lede">
+          Store a Home Assistant long-lived token on this device. It never leaves
+          the LAN.
+        </p>
+        <label>
+          Home Assistant URL
+          <input id="ha-url" type="url" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          Long-lived access token
+          <textarea id="ha-token" rows="4" autocomplete="off" spellcheck="false"></textarea>
+        </label>
+        <p id="setup-error" class="error hidden"></p>
+        <button type="button" id="save-setup" class="primary">Connect</button>
+        <p class="theme-label">Themes:</p>
+        <div class="theme-picks" role="group" aria-label="Themes">
+          <button type="button" class="theme-swatch" data-look="ember" aria-pressed="true">Ember</button>
+          <button type="button" class="theme-swatch" data-look="void" aria-pressed="false">Void</button>
+          <button type="button" class="theme-swatch" data-look="phosphor" aria-pressed="false">Phosphor</button>
+          <button type="button" class="theme-swatch" data-look="abyss" aria-pressed="false">Abyss</button>
+        </div>
+      </section>
+
+      <section id="main" class="panel hidden">
+        <header>
+          <div>
+            <p class="kicker" data-room-name>Theater</p>
+            <h1 id="activity-title">Idle</h1>
+          </div>
+          <div class="header-actions">
+            <button type="button" id="open-settings" class="settings-gear" aria-label="Settings" title="Settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M9.7 2.4h4.6l.4 2.3a7.2 7.2 0 0 1 1.9.8l2.2-1 2.3 2.3-1 2.2c.3.6.6 1.2.8 1.9l2.3.4v4.6l-2.3.4a7.2 7.2 0 0 1-.8 1.9l1 2.2-2.3 2.3-2.2-1a7.2 7.2 0 0 1-1.9.8l-.4 2.3H9.7l-.4-2.3a7.2 7.2 0 0 1-1.9-.8l-2.2 1-2.3-2.3 1-2.2a7.2 7.2 0 0 1-.8-1.9l-2.3-.4V9.7l2.3-.4c.2-.7.5-1.3.8-1.9l-1-2.2 2.3-2.3 2.2 1c.6-.3 1.2-.6 1.9-.8l.4-2.3zM12 8.4A3.6 3.6 0 1 0 12 15.6 3.6 3.6 0 0 0 12 8.4z"/>
+              </svg>
+            </button>
+            <button type="button" id="help" class="ghost" title="Lumagen output restart (Alt+Prev)">
+              Help
+            </button>
+            <button type="button" class="ghost" data-script="resync" title="Re-apply the last activity">
+              Resync
+            </button>
+            <button type="button" id="reconnect" class="ghost down" title="Reconnect" hidden>
+              Offline
+            </button>
+          </div>
+        </header>
+
+        <div id="banner" class="banner hidden"></div>
+
+        <div id="progress" class="progress hidden" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <p id="progress-title">Starting…</p>
+            <p id="progress-detail" class="hint">Waiting for devices</p>
+          </div>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <!-- Activities from THEATER_CONFIG.activities — see docs/ACTIVITY_DECKS.md -->
+        <div class="activities" id="activities"></div>
+
+        <div class="stage">
+          <!-- Agents: new activity decks → docs/ACTIVITY_DECKS.md -->
+          <section class="deck device-deck hidden" id="xbox-deck" data-deck="xbox">
+            <div class="row">
+              <span>Xbox</span>
+              <span id="xbox-state" class="hint">—</span>
+            </div>
+            <div class="now-playing hidden" id="xbox-now">
+              <img class="now-art hidden" id="xbox-art" alt="" />
+              <div class="now-meta">
+                <p class="now-title" id="xbox-title"></p>
+                <p class="now-sub" id="xbox-sub"></p>
+                <div class="now-track hidden" id="xbox-track"><div class="now-fill" id="xbox-fill"></div></div>
+              </div>
+            </div>
+            <div class="xbox-sys">
+              <button type="button" class="xsys" data-xbox="GoHome" title="Xbox Home — leave app and return to the dashboard">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 11.5 12 4.5l8 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 10.5V19h10v-8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Home</span>
+              </button>
+              <button type="button" class="xsys" data-xbox="Menu" title="Menu — formerly Start. Quit and app options.">
+                <svg viewBox="0 0 24 16" aria-hidden="true">
+                  <path d="M4 4h16M4 8h16M4 12h16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                </svg>
+                <span>Menu</span>
+              </button>
+              <button type="button" id="open-xbox-apps" class="xsys" disabled title="Browse and launch Xbox apps">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z"/>
+                </svg>
+                <span>Apps</span>
+              </button>
+            </div>
+            <form class="xbox-type" id="xbox-type">
+              <input type="password" name="q" enterkeyhint="send" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="" aria-label="Send text to Xbox" disabled />
+              <button type="submit" class="xsys" aria-label="Send" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 5v7a4 4 0 0 1-4 4H6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                  <path d="M10 12.5 5.5 16 10 19.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </form>
+            <div class="abxy-wrap">
+            <div class="pad-stack">
+            <div class="abxy">
+              <button type="button" class="face y" data-xbox="Y" aria-label="Y">Y</button>
+              <button type="button" class="face x" data-xbox="X" aria-label="X">X</button>
+              <button type="button" class="face b" data-xbox="B" aria-label="B">B</button>
+              <button type="button" class="face a" data-xbox="A" aria-label="A">A</button>
+            </div>
+            <div class="dpad" role="group" aria-label="D-pad">
+              <button type="button" class="dpad-btn up" data-xbox="Up" aria-label="Up"></button>
+              <button type="button" class="dpad-btn left" data-xbox="Left" aria-label="Left"></button>
+              <button type="button" class="dpad-btn right" data-xbox="Right" aria-label="Right"></button>
+              <button type="button" class="dpad-btn down" data-xbox="Down" aria-label="Down"></button>
+              <span class="dpad-hub" aria-hidden="true"></span>
+            </div>
+            </div>
+            </div>
+          </section>
+
+          <section class="deck device-deck hidden" id="transport-deck" data-deck="transport">
+            <div class="row">
+              <span>Panasonic</span>
+              <span id="disc-state" class="hint">—</span>
+            </div>
+            <div class="now-playing hidden" id="disc-now">
+              <img class="now-art hidden" id="disc-art" alt="" />
+              <div class="now-meta">
+                <p class="now-title" id="disc-title"></p>
+                <p class="now-sub" id="disc-sub"></p>
+                <div class="now-track hidden" id="disc-track"><div class="now-fill" id="disc-fill"></div></div>
+              </div>
+            </div>
+            <div class="disc-keys">
+              <button type="button" data-disc="OP_CL">Tray</button>
+              <button type="button" data-disc="MLTNAVI">Home</button>
+              <button type="button" data-disc="MENU">Options</button>
+              <button type="button" data-disc="PLAYBACK">Play</button>
+              <button type="button" data-disc="PAUSE">Pause</button>
+              <button type="button" data-disc="STOP">Stop</button>
+            </div>
+            <div class="disc-nav">
+              <div class="disc-pad-stack">
+              <div class="disc-arrows" role="group" aria-label="Menu arrows">
+                <button type="button" class="arrow up" data-disc="UP" aria-label="Up">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="arrow left" data-disc="LEFT" aria-label="Left">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="arrow right" data-disc="RIGHT" aria-label="Right">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="arrow down" data-disc="DOWN" aria-label="Down">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <button type="button" class="disc-ok" data-disc="SELECT">OK</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="deck device-deck hidden" id="appletv-deck" data-deck="appletv">
+            <div class="row">
+              <span>Apple TV</span>
+              <span id="appletv-state" class="hint">—</span>
+            </div>
+            <div class="now-playing hidden" id="appletv-now">
+              <img class="now-art hidden" id="appletv-art" alt="" />
+              <div class="now-meta">
+                <p class="now-title" id="appletv-title"></p>
+                <p class="now-sub" id="appletv-sub"></p>
+                <div class="now-track hidden" id="appletv-track"><div class="now-fill" id="appletv-fill"></div></div>
+              </div>
+            </div>
+            <div class="appletv-keys">
+              <button type="button" data-appletv="menu">Menu</button>
+              <button type="button" data-appletv="home">Home</button>
+              <button type="button" id="open-appletv-apps" class="xsys" disabled title="Browse and launch Apple TV apps">Apps</button>
+              <button type="button" data-appletv="play">Play</button>
+              <button type="button" data-appletv="pause">Pause</button>
+            </div>
+            <div class="disc-nav">
+              <div class="disc-pad-stack">
+                <div class="disc-arrows" role="group" aria-label="Apple TV arrows">
+                  <button type="button" class="arrow up" data-appletv="up" aria-label="Up">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="arrow left" data-appletv="left" aria-label="Left">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="arrow right" data-appletv="right" aria-label="Right">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="arrow down" data-appletv="down" aria-label="Down">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+                <button type="button" class="disc-ok" data-appletv="select">OK</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="deck device-deck" id="idle-deck">
+            <p class="hint">Start an activity for device controls.</p>
+            <button type="button" id="idle-open-settings" class="ghost" style="align-self:flex-start;margin-top:8px">
+              Themes &amp; settings
+            </button>
+          </section>
+
+          <section class="volume-deck">
+            <p id="volume-label" class="hint">—</p>
+            <button type="button" id="vol-up" class="vol-step" aria-label="Volume up">+</button>
+            <div class="volume-slider">
+              <input id="volume" type="range" min="0" max="100" step="1" aria-label="Volume" />
+            </div>
+            <button type="button" id="vol-down" class="vol-step" aria-label="Volume down">−</button>
+            <button type="button" id="mute" class="chip">Mute</button>
+          </section>
+        </div>
+
+        <p class="foot">Safari → Share → Add to Home Screen. Tap a device for details.</p>
+      </section>
+    </div>
+    <section id="xbox-apps-sheet" class="settings-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="xbox-apps-title">
+      <div class="settings-card xbox-apps-card">
+        <header>
+          <h2 id="xbox-apps-title">Apps</h2>
+          <button type="button" id="xbox-apps-back" class="ghost">Back</button>
+        </header>
+        <div id="xbox-apps-grid" class="xbox-apps-grid" role="list"></div>
+      </div>
+    </section>
+    <section id="appletv-apps-sheet" class="settings-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="appletv-apps-title">
+      <div class="settings-card xbox-apps-card">
+        <header>
+          <h2 id="appletv-apps-title">Apps</h2>
+          <button type="button" id="appletv-apps-back" class="ghost">Back</button>
+        </header>
+        <div id="appletv-apps-grid" class="xbox-apps-grid" role="list"></div>
+      </div>
+    </section>
+    <section id="settings-sheet" class="settings-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-card">
+        <header>
+          <h2 id="settings-title">Settings</h2>
+          <button type="button" id="settings-back" class="ghost">Back</button>
+        </header>
+        <div class="settings-section">
+          <h3>Themes</h3>
+          <div class="theme-picks" role="group" aria-label="Themes">
+            <button type="button" class="theme-swatch" data-look="ember" aria-pressed="true">Ember</button>
+            <button type="button" class="theme-swatch" data-look="void" aria-pressed="false">Void</button>
+            <button type="button" class="theme-swatch" data-look="phosphor" aria-pressed="false">Phosphor</button>
+            <button type="button" class="theme-swatch" data-look="abyss" aria-pressed="false">Abyss</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Default volume</h3>
+          <p class="hint">Applied once when the receiver powers on.</p>
+          <div class="settings-volume">
+            <input id="settings-default-volume" type="range" min="0" max="100" step="1" value="50" aria-label="Default volume" />
+            <span id="settings-default-volume-label" class="hint">50%</span>
+          </div>
+          <button type="button" id="settings-clear-default-volume" class="ghost settings-inline">Reset</button>
+        </div>
+        <div class="settings-section">
+          <h3>Favorite Xbox apps</h3>
+          <p id="xbox-catalog-hint" class="hint"></p>
+          <ul id="xbox-favorites-list" class="xbox-favorites-list"></ul>
+          <button type="button" id="xbox-favorites-add" class="ghost">Add from Xbox library</button>
+          <div id="xbox-library-picker" class="xbox-library-picker hidden"></div>
+        </div>
+        <div class="settings-section">
+          <h3>App blacklist</h3>
+          <p class="hint">Hidden from the Apps switcher. Double-tap to add or remove in the picker.</p>
+          <ul id="xbox-blacklist-list" class="xbox-favorites-list"></ul>
+          <button type="button" id="xbox-blacklist-add" class="ghost">Add from Xbox library</button>
+          <div id="xbox-blacklist-picker" class="xbox-library-picker hidden"></div>
+        </div>
+        <div class="settings-section hidden" id="appletv-favorites-section">
+          <h3>Favorite Apple TV apps</h3>
+          <p id="appletv-catalog-hint" class="hint"></p>
+          <ul id="appletv-favorites-list" class="xbox-favorites-list"></ul>
+          <button type="button" id="appletv-favorites-add" class="ghost">Add from Apple TV library</button>
+          <div id="appletv-library-picker" class="xbox-library-picker hidden"></div>
+        </div>
+        <div class="settings-section hidden" id="appletv-blacklist-section">
+          <h3>Apple TV app blacklist</h3>
+          <p class="hint">Hidden from the Apps switcher. Double-tap to add or remove in the picker.</p>
+          <ul id="appletv-blacklist-list" class="xbox-favorites-list"></ul>
+          <button type="button" id="appletv-blacklist-add" class="ghost">Add from Apple TV library</button>
+          <div id="appletv-blacklist-picker" class="xbox-library-picker hidden"></div>
+        </div>
+      </div>
+    </section>
+    <section id="device-sheet" class="device-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="device-title">
+      <header class="device-header">
+        <button type="button" id="device-back" class="ghost">Back</button>
+        <div class="device-heading">
+          <p class="kicker" id="device-kicker">Device</p>
+          <h1 id="device-title">JVC</h1>
+        </div>
+        <span id="device-live" class="hint">—</span>
+      </header>
+      <div id="device-body" class="device-body"></div>
+    </section>
+    <div id="shutdown-confirm" class="confirm hidden" role="dialog" aria-modal="true" aria-labelledby="shutdown-confirm-title">
+      <div class="confirm-card">
+        <svg class="confirm-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 3.2v8.2"/>
+          <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M7.05 6.2a8 8 0 1 0 9.9 0"/>
+        </svg>
+        <p id="shutdown-confirm-title">Shut down the theater?</p>
+        <p id="shutdown-confirm-hint" class="hint">This turns off the projector, Lumagen, receiver, and disc player.</p>
+        <div class="confirm-actions">
+          <button type="button" id="shutdown-cancel" class="confirm-cancel">Cancel</button>
+          <button type="button" id="shutdown-ok" class="confirm-ok">Shut down</button>
+        </div>
+      </div>
+    </div>
+    <script src="config.js?v=114"></script>
+    <script src="controls.js?v=114"></script>
+    <script src="sheets/jvc.js?v=114"></script>
+    <script src="sheets/lumagen.js?v=114"></script>
+    <script src="sheets/onkyo.js?v=114"></script>
+    <script src="sheets/panasonic.js?v=114"></script>
+    <script src="sheets/xbox.js?v=114"></script>
+    <script src="sheets/appletv.js?v=114"></script>
+    <script src="app.js?v=114"></script>
+  </body>
+</html>

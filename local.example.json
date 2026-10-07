@@ -1,0 +1,9 @@
+{
+  "haUrl": "http://homeassistant.local",
+  "token": "YOUR_LONG_LIVED_TOKEN",
+  "listen": "0.0.0.0",
+  "port": 8765,
+  "osdHost": "",
+  "osdPort": 60128,
+  "publicUrl": "http://127.0.0.1:8765"
+}

@@ -1,0 +1,10 @@
+{
+  "gameSource": "VIDEO3 ··· GAME/TV ··· GAME",
+  "xboxMac": "YOUR_XBOX_MAC",
+  "wolButton": "button.wake_on_lan_YOUR_XBOX_MAC",
+  "broadcastAddress": "255.255.255.255",
+  "streamInput": "Xbox (1)",
+  "streamLogical": "1",
+  "appletv": "media_player.apple_tv",
+  "appletvRemote": "remote.apple_tv"
+}

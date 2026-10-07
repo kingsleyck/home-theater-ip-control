@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home Theater IP Control — print QR</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: #fff; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+      main { width: min(7.2in, 100%); text-align: center; }
+      h1 { margin: 0 0 6px; font-size: 2.4rem; letter-spacing: -0.04em; }
+      .lede { margin: 0 0 28px; color: #444; }
+      .qr { display: block; width: 3.6in; height: 3.6in; margin: 0 auto 22px; background: #fff; }
+      .url { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; }
+      ol { margin: 18px auto 0; padding: 0; max-width: 26rem; text-align: left; color: #444; line-height: 1.45; }
+      .screen-only { margin-top: 28px; }
+      .screen-only button { font: inherit; font-weight: 650; padding: 10px 18px; border: 1px solid #111; background: #111; color: #fff; border-radius: 10px; cursor: pointer; }
+      @page { size: letter; margin: 0.7in; }
+      @media print { body { padding: 0; min-height: auto; } .screen-only { display: none; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Home Theater IP Control</h1>
+      <p class="lede">Scan on the LAN to open controls in Safari</p>
+      <img class="qr" id="qr" src="/qr.svg" width="656" height="656" alt="QR code for the control page" />
+      <p class="url" id="url"></p>
+      <ol>
+        <li>Join the same LAN as Home Assistant.</li>
+        <li>Open Camera and scan. iPhone opens Safari.</li>
+        <li>Share → Add to Home Screen → Open as a Web App.</li>
+      </ol>
+      <p class="screen-only"><button type="button" onclick="window.print()">Print</button></p>
+    </main>
+    <script>
+      (async function () {
+        var url = location.origin;
+        try {
+          var res = await fetch("/auth.json", { cache: "no-store" });
+          if (res.ok) {
+            var auth = await res.json();
+            if (auth && auth.publicUrl) url = String(auth.publicUrl).replace(/\/$/, "");
+          }
+        } catch (_) {}
+        document.getElementById("url").textContent = url;
+      })();
+    </script>
+  </body>
+</html>
